@@ -1,0 +1,42 @@
+services:
+  api:
+    build:
+      context: ./backend
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in your root .env file}
+      DATABASE_PATH: /data/clarity_chat.db
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      FRONTEND_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+    volumes:
+      - clarity_data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - ollama
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  clarity_data:
+  ollama_data:
